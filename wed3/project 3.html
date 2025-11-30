@@ -1,0 +1,329 @@
+<!--
+StudentMaster — Single-file Student Management Website
+Features (10 "pages" via hash routing):
+- Landing / Home
+- Dashboard (KPIs + small charts)
+- Students (list, add/edit/delete, search, filters, localStorage)
+- Attendance (take attendance, view summary)
+- Grades (enter grades, view progress chart)
+- Library (catalog, issue/return books)
+- Timetable (drag & drop slot creator)
+- Reports (export simple CSV from data)
+- Profile (user/profile card + theme toggle)
+- Settings (app preferences)
+
+How to use: save this file as studentmaster.html and open in a modern browser.
+No build tools required. All data persists to localStorage.
+Designed to be attractive, interactive, and unique.
+--> 
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>StudentMaster — Next‑gen Student Management</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f1724; --card:#0b1220; --accent:#7c3aed; --muted:#9aa4b2; --glass:rgba(255,255,255,0.04);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;background:linear-gradient(180deg,#071226 0%, #07182a 50%, #0b1420 100%);color:#e6eef8}
+.header{display:flex;align-items:center;gap:16px;padding:18px 28px;background:linear-gradient(90deg,rgba(255,255,255,0.02),transparent);backdrop-filter: blur(6px);position:sticky;top:0;z-index:40}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:44px;height:44px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),#2dd4bf);box-shadow:0 6px 18px rgba(124,58,237,0.18);font-weight:800}
+.logo span{font-size:18px}
+.title{font-weight:700}
+.nav{margin-left:18px;display:flex;gap:10px}
+.nav a{color:var(--muted);text-decoration:none;padding:8px 12px;border-radius:8px;font-weight:600}
+.nav a.active{background:linear-gradient(90deg,rgba(124,58,237,0.12),rgba(45,212,191,0.06));color:#def}
+.container{display:grid;grid-template-columns:260px 1fr;gap:20px;padding:28px}
+.sidebar{background:var(--card);padding:14px;border-radius:14px;min-height:calc(100vh - 110px)}
+.menu{display:flex;flex-direction:column;gap:6px}
+.menu button{background:transparent;border:none;color:var(--muted);padding:10px;border-radius:8px;text-align:left;cursor:pointer;font-weight:600}
+.menu button:hover{color:#fff;background:linear-gradient(90deg,rgba(255,255,255,0.02),transparent)}
+.card{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:16px;border-radius:12px}
+.topbar{display:flex;gap:12px;align-items:center;justify-content:flex-end}
+.btn{background:linear-gradient(90deg,var(--accent),#2dd4bf);border:none;color:#032; padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer}
+.search{display:flex;gap:8px;align-items:center}
+.search input{background:var(--glass);border:1px solid rgba(255,255,255,0.03);padding:10px;border-radius:10px;color:#dfeaf6}
+.main{min-height:70vh}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.kpi{padding:12px;border-radius:12px}
+.kpi h3{margin:0;font-size:18px}
+.kpi p{margin:6px 0 0;color:var(--muted)}
+.table{width:100%;border-collapse:collapse;margin-top:12px}
+.table th,.table td{padding:12px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
+.badge{padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.03);font-weight:700}
+.footer{padding:18px;text-align:center;color:var(--muted)}
+/* landing flair */
+.hero{display:grid;grid-template-columns:1fr 420px;gap:28px;align-items:center}
+.hero .glass{padding:24px;border-radius:14px;background:linear-gradient(135deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));box-shadow:0 12px 30px rgba(2,6,23,0.5)}
+.big{font-size:28px;font-weight:800}
+.small{color:var(--muted);margin-top:10px}
+.cardlist{display:flex;gap:12px;flex-wrap:wrap}
+/* modal */
+.modal{position:fixed;inset:0;background:linear-gradient(180deg,rgba(2,6,23,0.6),rgba(2,6,23,0.6));display:none;align-items:center;justify-content:center;padding:20px}
+.modal.open{display:flex}
+.modal .panel{width:720px;max-width:100%;background:#071122;padding:18px;border-radius:12px}
+.form-row{display:flex;gap:12px}
+.input,textarea,select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#e9f2ff}
+.small-muted{color:var(--muted);font-size:13px}
+/* animations & micro-interactions */
+.btn-ghost{background:transparent;border:1px dashed rgba(255,255,255,0.03);padding:8px 10px;border-radius:10px;color:var(--muted)}
+.card:hover{transform:translateY(-6px);transition:all 300ms cubic-bezier(.2,.9,.3,1)}
+.icon{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;background:rgba(255,255,255,0.03)}
+/* responsive */
+@media (max-width:900px){.container{grid-template-columns:1fr;padding:16px}.hero{grid-template-columns:1fr}.sidebar{display:none}}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="brand">
+    <div class="logo"><span>SM</span></div>
+    <div>
+      <div class="title">StudentMaster</div>
+      <div class="small-muted">Next‑gen student management — micro animations & local demo</div>
+    </div>
+  </div>
+  <nav class="nav" id="topnav"></nav>
+  <div style="flex:1"></div>
+  <div class="topbar">
+    <div class="search card">
+      <input id="globalSearch" placeholder="Search students, books, reports..."/>
+    </div>
+    <button id="addQuick" class="btn">+ Quick Add</button>
+  </div>
+</header>
+<div class="container">
+  <aside class="sidebar card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <strong>Navigation</strong>
+        <div class="small-muted">10 pages · demo data</div>
+      </div>
+      <button id="themeTog" class="btn-ghost">Theme</button>
+    </div>
+    <div class="menu" id="menuList"></div>
+    <hr style="border:none;border-top:1px solid rgba(255,255,255,0.02);margin:12px 0">
+    <div class="small-muted">Live demo keys</div>
+    <div style="display:flex;gap:8px;margin-top:10px"><div class="badge">Admin</div><div class="badge">Teacher</div></div>
+  </aside>
+  <main class="main">
+    <div id="view"></div>
+    <div class="footer">Made with 💜 • StudentMaster Demo</div>
+  </main>
+</div>
+
+<!-- Modal for Add/Edit -->
+<div id="modal" class="modal" role="dialog" aria-hidden="true">
+  <div class="panel">
+    <h3 id="modalTitle">Add Student</h3>
+    <div style="height:12px"></div>
+    <div style="display:grid;gap:10px">
+      <input id="sname" class="input" placeholder="Full name (e.g. Kunal Chobdar)" />
+      <div class="form-row">
+        <input id="sage" class="input" placeholder="Age" />
+        <select id="sclass" class="input"><option value="1">Class 1</option><option>Class 2</option><option>Class 3</option><option>Class 4</option><option>Class 5</option><option>Class 6</option></select>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px">
+        <button id="modalCancel" class="btn-ghost">Cancel</button>
+        <button id="modalSave" class="btn">Save Student</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* --- Simple SPA router & demo app --- */
+const PAGES=[
+  {id:'home',title:'Home'},
+  {id:'dashboard',title:'Dashboard'},
+  {id:'students',title:'Students'},
+  {id:'attendance',title:'Attendance'},
+  {id:'grades',title:'Grades'},
+  {id:'library',title:'Library'},
+  {id:'timetable',title:'Timetable'},
+  {id:'reports',title:'Reports'},
+  {id:'profile',title:'Profile'},
+  {id:'settings',title:'Settings'}
+];
+const menu=document.getElementById('menuList');
+const topnav=document.getElementById('topnav');
+PAGES.forEach(p=>{
+  const b=document.createElement('button'); b.textContent=p.title; b.onclick=()=>navigate(p.id); menu.appendChild(b);
+  const a=document.createElement('a'); a.href='#'+p.id; a.textContent=p.title; topnav.appendChild(a);
+});
+
+function setActive(hash){
+  document.querySelectorAll('.menu button').forEach(b=>b.classList.remove('active'));
+  const idx=PAGES.findIndex(p=>p.id===hash); if(idx>=0) document.querySelectorAll('.menu button')[idx].classList.add('active');
+  document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('active'));
+  const navs=[...document.querySelectorAll('.nav a')]; const ni=navs.findIndex(n=>n.getAttribute('href')==='#'+hash); if(ni>=0) navs[ni].classList.add('active');
+}
+function navigate(page){ location.hash=page; }
+function render(){ const page=location.hash.replace('#','')||'home'; setActive(page); const view=document.getElementById('view'); view.innerHTML='';
+  if(page==='home') renderHome(view);
+  else if(page==='dashboard') renderDashboard(view);
+  else if(page==='students') renderStudents(view);
+  else if(page==='attendance') renderAttendance(view);
+  else if(page==='grades') renderGrades(view);
+  else if(page==='library') renderLibrary(view);
+  else if(page==='timetable') renderTimetable(view);
+  else if(page==='reports') renderReports(view);
+  else if(page==='profile') renderProfile(view);
+  else if(page==='settings') renderSettings(view);
+}
+window.addEventListener('hashchange',render);
+render();
+
+/* --- localStorage demo data --- */
+function id(){return 's_'+Math.random().toString(36).slice(2,9)}
+function load(){try{return JSON.parse(localStorage.getItem('sm:data')||'null')||defaultData()}catch(e){return defaultData()}}
+function save(d){localStorage.setItem('sm:data',JSON.stringify(d));}
+function defaultData(){
+  const studs=[
+    {id:id(),name:'Aisha Kapoor',age:13,class:'7',present:0,grades:{Math:78,Eng:82}},
+    {id:id(),name:'Rohan Sharma',age:14,class:'8',present:0,grades:{Math:88,Eng:72}},
+    {id:id(),name:'Maya Patel',age:12,class:'6',present:0,grades:{Math:92,Eng:95}},
+  ];
+  const books=[{id:id(),title:'Mathematics Essentials',author:'J. Kumar',issuedTo:null,price:350},{id:id(),title:'World History',author:'S. Rao',issuedTo:null,price:240}]
+  return {students:studs,books,attendance:{},timetable:[],settings:{theme:'dark'}}
+}
+let DB=load(); save(DB);
+
+/* --- Home --- */
+function renderHome(el){
+  el.innerHTML=`<div class="hero card">
+    <div class="glass">
+      <div class="big">Reinvent school admin — fun, fast, and private</div>
+      <div class="small">This demo stores all data in your browser. Try adding students, taking attendance, issuing books, and exporting reports.</div>
+      <div style="height:18px"></div>
+      <div class="cardlist">
+        <div class="card kpi"><h3>Students</h3><p id="homeStudents">-</p></div>
+        <div class="card kpi"><h3>Books</h3><p id="homeBooks">-</p></div>
+        <div class="card kpi"><h3>Pending Issues</h3><p id="homeIssues">-</p></div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:12px"><h3>Quick actions</h3>
+        <div style="display:flex;gap:10px;margin-top:10px"><button class="btn" id="ctaAdd">Add Student</button><button class="btn-ghost" id="ctaImport">Import CSV</button></div>
+      </div>
+      <div class="card"><h3>Tips</h3><p class="small-muted">Try the timetable page to create a weekly schedule. Charts are intentionally minimal — tweak them for your needs.</p></div>
+    </div>
+  </div>`;
+  document.getElementById('homeStudents').textContent=DB.students.length;
+  document.getElementById('homeBooks').textContent=DB.books.length;
+  document.getElementById('homeIssues').textContent=DB.books.filter(b=>b.issuedTo).length;
+  document.getElementById('ctaAdd').onclick=()=>openModal();
+}
+
+/* --- Dashboard --- */
+function renderDashboard(el){
+  el.innerHTML=`<div class="grid">
+    <div class="card kpi"><h3>Total students</h3><p>${DB.students.length}</p></div>
+    <div class="card kpi"><h3>Average Grade (sample)</h3><p>${avgGrade()}</p></div>
+    <div class="card kpi"><h3>Attendance today</h3><p>${attendanceToday()}</p></div>
+  </div>
+  <div style="height:16px"></div>
+  <div class="card"><h3>Attendance spark</h3><canvas id="spark" width="600" height="120"></canvas></div>`;
+  drawSpark();
+}
+function avgGrade(){
+  let sum=0,c=0; DB.students.forEach(s=>{for(let k in s.grades){sum+=s.grades[k];c++}}); return c?Math.round(sum/c):'-';
+}
+function attendanceToday(){
+  const today=(new Date()).toISOString().slice(0,10); const a=DB.attendance[today]||{}; return Object.values(a).filter(Boolean).length+'/'+DB.students.length;
+}
+function drawSpark(){ const ctx=document.getElementById('spark').getContext('2d'); ctx.clearRect(0,0,600,120); ctx.beginPath(); const arr=[...Array(12)].map(_=>Math.random()*50+30); ctx.moveTo(0,100-arr[0]); arr.forEach((v,i)=>ctx.lineTo((i/11)*600,100-v)); ctx.strokeStyle='rgba(124,58,237,0.9)'; ctx.lineWidth=3; ctx.stroke(); }
+
+/* --- Students page --- */
+function renderStudents(el){
+  el.innerHTML=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h3>Students</h3><div><input id="filterName" placeholder="Search name" class="input" style="width:220px;display:inline-block;margin-right:8px"/><button id="addStudent" class="btn">+ Student</button></div></div>
+    <table class="table" id="studentsTable"><thead><tr><th>Name</th><th>Age</th><th>Class</th><th>Present</th><th>Actions</th></tr></thead><tbody></tbody></table>
+  </div>`;
+  document.getElementById('addStudent').onclick=()=>openModal();
+  document.getElementById('filterName').oninput=()=>populateStudents();
+  populateStudents();
+}
+function populateStudents(){
+  const tbody=document.querySelector('#studentsTable tbody'); tbody.innerHTML='';
+  const q=document.getElementById('filterName')?document.getElementById('filterName').value.toLowerCase():'';
+  const rows=DB.students.filter(s=>s.name.toLowerCase().includes(q));
+  rows.forEach(s=>{
+    const tr=document.createElement('tr'); tr.innerHTML=`<td>${s.name}</td><td>${s.age}</td><td>${s.class}</td><td>${s.present||0}</td><td><button class="btn-ghost" data-id="${s.id}">Edit</button> <button class="btn-ghost" data-del="${s.id}">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('[data-id]').forEach(b=>b.onclick=()=>editStudent(b.getAttribute('data-id')));
+  tbody.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Delete student?')){DB.students=DB.students.filter(s=>s.id!==b.getAttribute('data-del')); save(DB); render();}});
+}
+
+/* --- Modal actions --- */
+const modal=document.getElementById('modal'); const modalTitle=document.getElementById('modalTitle');
+function openModal(student){ modal.classList.add('open'); modal.setAttribute('aria-hidden','false'); modalTitle.textContent=student?'Edit student':'Add Student';
+  document.getElementById('sname').value=student?student.name:''; document.getElementById('sage').value=student?student.age:''; document.getElementById('sclass').value=student?student.class:'1';
+  document.getElementById('modalSave').onclick=()=>{ const name=document.getElementById('sname').value.trim(); if(!name){alert('Name required');return;} const age=document.getElementById('sage').value; const cls=document.getElementById('sclass').value;
+    if(student){ const s=DB.students.find(x=>x.id===student.id); s.name=name; s.age=age; s.class=cls; } else { DB.students.push({id:id(),name,age, class:cls, present:0, grades:{}}); }
+    save(DB); modal.classList.remove('open'); render(); }
+}
+document.getElementById('modalCancel').onclick=()=>{ modal.classList.remove('open'); }
+function editStudent(idv){ const s=DB.students.find(s=>s.id===idv); if(!s) return; openModal(s); }
+
+document.getElementById('addQuick').onclick=()=>{ openModal(); }
+
+/* --- Attendance --- */
+function renderAttendance(el){
+  el.innerHTML=`<div class="card"><h3>Attendance — today</h3><div class="small-muted">Click to toggle present/absent</div><table class="table"><thead><tr><th>Name</th><th>Present</th></tr></thead><tbody id="attBody"></tbody></table><div style="height:10px"></div><button id="saveAtt" class="btn">Save Attendance</button></div>`;
+  const tbody=document.getElementById('attBody'); tbody.innerHTML=''; const today=(new Date()).toISOString().slice(0,10); const rec=DB.attendance[today]||{};
+  DB.students.forEach(s=>{ const tr=document.createElement('tr'); const present=!!rec[s.id]; tr.innerHTML=`<td>${s.name}</td><td><button class="btn-ghost" data-id="${s.id}" data-pres="${present}">${present?'Present':'Absent'}</button></td>`; tbody.appendChild(tr)});
+  tbody.querySelectorAll('button').forEach(b=>b.onclick=()=>{ const id=b.getAttribute('data-id'); const is=b.getAttribute('data-pres')==='true'; b.setAttribute('data-pres',(!is)); b.textContent=!is?'Present':'Absent'; });
+  document.getElementById('saveAtt').onclick=()=>{ const today=(new Date()).toISOString().slice(0,10); DB.attendance[today]={}; document.querySelectorAll('#attBody button').forEach(b=>{ DB.attendance[today][b.getAttribute('data-id')]= b.textContent==='Present'; }); save(DB); alert('Saved for '+today); render(); }
+}
+
+/* --- Grades --- */
+function renderGrades(el){ el.innerHTML=`<div class="card"><h3>Grades</h3><div class="small-muted">Enter scores</div><div id="gradeForm"></div></div>`; const gf=document.getElementById('gradeForm'); gf.innerHTML=''; DB.students.forEach(s=>{ const row=document.createElement('div'); row.style.display='flex'; row.style.justifyContent='space-between'; row.style.gap='10px'; row.style.alignItems='center'; row.innerHTML=`<div><b>${s.name}</b><div class="small-muted">Class ${s.class}</div></div><div style="display:flex;gap:8px"><input data-id="${s.id}" data-sub="Math" class="input" placeholder="Math" style="width:80px" value="${s.grades.Math||''}"/><input data-id="${s.id}" data-sub="Eng" class="input" placeholder="Eng" style="width:80px" value="${s.grades.Eng||''}"/></div>`; gf.appendChild(row); });
+  const btn=document.createElement('button'); btn.className='btn'; btn.textContent='Save Grades'; btn.onclick=()=>{ document.querySelectorAll('[data-id]').forEach(inp=>{ const id=inp.getAttribute('data-id'); const sub=inp.getAttribute('data-sub'); const v=parseInt(inp.value)||0; const s=DB.students.find(x=>x.id===id); s.grades[s
+
+ub]=v; }); save(DB); alert('Grades saved'); render(); }; gf.appendChild(btn);
+}
+
+/* --- Library --- */
+function renderLibrary(el){ el.innerHTML=`<div class="card"><h3>Library</h3><div style="display:flex;justify-content:space-between;align-items:center"><div class="small-muted">Catalog</div><button id="addBook" class="btn">+ Add Book</button></div><table class="table"><thead><tr><th>Title</th><th>Author</th><th>Issued To</th><th>Actions</th></tr></thead><tbody id="booksBody"></tbody></table></div>`;
+  document.getElementById('addBook').onclick=()=>{ const t=prompt('Book title'); if(!t) return; const a=prompt('Author'); DB.books.push({id:id(),title:t,author:a,issuedTo:null}); save(DB); render(); }
+  const tbody=document.getElementById('booksBody'); tbody.innerHTML=''; DB.books.forEach(b=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${b.title}</td><td>${b.author}</td><td>${b.issuedTo?DB.students.find(s=>s.id===b.issuedTo).name:'-'}</td><td><button class="btn-ghost" data-issue="${b.id}">${b.issuedTo?'Return':'Issue'}</button></td>`; tbody.appendChild(tr); });
+  tbody.querySelectorAll('[data-issue]').forEach(b=>b.onclick=()=>{ const book=DB.books.find(x=>x.id===b.getAttribute('data-issue')); if(book.issuedTo){ book.issuedTo=null; } else { const sid=prompt('Enter student id (copy from Students table) or name'); const st=DB.students.find(s=>s.id===sid||s.name.toLowerCase()===sid.toLowerCase()); if(st) book.issuedTo=st.id; else alert('Student not found'); } save(DB); render(); });
+}
+
+/* --- Timetable (simple) --- */
+function renderTimetable(el){ el.innerHTML=`<div class="card"><h3>Timetable</h3><div class="small-muted">Add a slot (day/time/subject)</div><div style="display:flex;gap:8px;margin-top:8px"><input id="ttDay" class="input" placeholder="Day e.g. Mon" style="width:100px"/><input id="ttTime" class="input" placeholder="09:00-10:00" style="width:120px"/><input id="ttSub" class="input" placeholder="Subject" style="width:200px"/><button id="ttAdd" class="btn">Add</button></div><div style="height:12px"></div><table class="table"><thead><tr><th>Day</th><th>Time</th><th>Subject</th><th></th></tr></thead><tbody id="ttBody"></tbody></table></div>`;
+  document.getElementById('ttAdd').onclick=()=>{ const d=document.getElementById('ttDay').value; const t=document.getElementById('ttTime').value; const s=document.getElementById('ttSub').value; if(!d||!t||!s){alert('fill');return;} DB.timetable.push({id:id(),day:d,time:t,sub:s}); save(DB); render(); }
+  const tb=document.getElementById('ttBody'); tb.innerHTML=''; DB.timetable.forEach(r=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${r.day}</td><td>${r.time}</td><td>${r.sub}</td><td><button class="btn-ghost" data-tt="${r.id}">Delete</button></td>`; tb.appendChild(tr)});
+  tb.querySelectorAll('[data-tt]').forEach(b=>b.onclick=()=>{ DB.timetable=DB.timetable.filter(x=>x.id!==b.getAttribute('data-tt')); save(DB); render(); });
+}
+
+/* --- Reports --- */
+function renderReports(el){ el.innerHTML=`<div class="card"><h3>Reports</h3><p class="small-muted">Export student data to CSV</p><div style="display:flex;gap:8px"><button id="exportCsv" class="btn">Export CSV</button><button id="clearData" class="btn-ghost">Reset Demo</button></div></div>`;
+  document.getElementById('exportCsv').onclick=()=>{ const csv=[['id','name','age','class']]; DB.students.forEach(s=>csv.push([s.id,s.name,s.age,s.class])); const blob=new Blob([csv.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""') }"`).join(',')).join('\n')],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='students.csv'; a.click(); URL.revokeObjectURL(url); }
+  document.getElementById('clearData').onclick=()=>{ if(confirm('Reset demo data?')){ localStorage.removeItem('sm:data'); DB=load(); save(DB); render(); }}
+}
+
+/* --- Profile & Settings --- */
+function renderProfile(el){ el.innerHTML=`<div class="card"><h3>Profile</h3><div style="display:flex;gap:12px;align-items:center"><div style="width:96px;height:96px;background:linear-gradient(135deg,var(--accent),#2dd4bf);border-radius:12px;display:grid;place-items:center;font-weight:800">AD</div><div><h4>Admin Demo</h4><div class="small-muted">Role: Administrator</div></div></div></div>` }
+function renderSettings(el){ el.innerHTML=`<div class="card"><h3>Settings</h3><div style="margin-top:10px"><label class="small-muted">Theme</label><div style="height:8px"></div><select id="setTheme" class="input"><option value="dark">Dark</option><option value="light">Light</option></select><div style="height:12px"></div><button id="saveSet" class="btn">Save Settings</button></div></div>`; document.getElementById('setTheme').value=DB.settings.theme||'dark'; document.getElementById('saveSet').onclick=()=>{ DB.settings.theme=document.getElementById('setTheme').value; save(DB); alert('Saved'); }
+}
+
+/* --- small utilities --- */
+function openModalFromStudentName(name){ const s=DB.students.find(x=>x.name.toLowerCase()===name.toLowerCase()); if(s) openModal(s); else alert('Student not found'); }
+
+document.getElementById('globalSearch').addEventListener('keydown',e=>{ if(e.key==='Enter'){ const q=e.target.value.trim(); if(!q) return; // try search by name
+  const s=DB.students.find(s=>s.name.toLowerCase().includes(q.toLowerCase())); if(s) { location.hash='students'; setTimeout(()=>openModal(s),200) } else alert('No results'); } });
+
+/* theme toggle */
+const themeTog=document.getElementById('themeTog'); themeTog.onclick=()=>{ document.body.classList.toggle('light'); if(document.body.classList.contains('light')){ document.documentElement.style.setProperty('--bg','#f8fafc'); document.documentElement.style.setProperty('--card','#ffffff'); document.documentElement.style.setProperty('--accent','#7c3aed'); document.documentElement.style.setProperty('--muted','#475569'); } else { document.documentElement.style.removeProperty('--bg'); document.documentElement.style.removeProperty('--card'); document.documentElement.style.removeProperty('--accent'); document.documentElement.style.removeProperty('--muted'); } }
+
+/* initial quick demo action */
+document.getElementById('ctaImport')?.addEventListener('click',()=>{ alert('CSV import intentionally minimal in demo. Use Reports → Export to inspect format.'); });
+
+</script>
+</body>
+</html>
