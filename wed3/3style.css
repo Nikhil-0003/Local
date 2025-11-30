@@ -320,7 +320,7 @@ html, body {
       justify-content: space-between;
       padding: 100px 10%;
       height: 60vh; /* 60% of the page height */
-      background: linear-gradient(135deg, #007bff, #4facfe);
+      background: linear-gradient(135deg, #bf42de, #bc0ce49a);
       border-bottom-left-radius: 180px;
       color: white;
     }
